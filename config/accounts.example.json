@@ -2,6 +2,7 @@
   {
     "name": "账号1",
     "token": "请替换为手动获取的Token",
+    "source": "h5",
     "enabled": true
   }
 ]

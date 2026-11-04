@@ -33,7 +33,7 @@ class CommunityError(Exception):
 
 
 class TokenExpired(CommunityError):
-    """登录凭据失效。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
+    """接口认证被拒绝，可能是来源不匹配或凭据失效。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
 
 
 class AlreadySigned(CommunityError):
@@ -58,7 +58,7 @@ class CommunityClient:
             "Cookie": "user_token=" + account["token"],
             "devCode": account["devcode"],
             "distinct_id": account["distinct_id"],
-            "source": "ios",
+            "source": account.get("source", "h5"),
             "lang": "zh-Hans",
             "version": "2.2.0",
             "channelId": "1",
@@ -107,7 +107,9 @@ class CommunityClient:
             raise CommunityError("接口响应格式异常")
         code = result.get("code")
         if code in (220, 221, 222, 230):
-            raise TokenExpired("Token 已失效，请手动重新获取并更新配置")
+            raise TokenExpired(
+                f"接口认证失败（{path}，业务码 {code}）；请核对 Token 与 source 来源是否匹配，或登录是否已失效"
+            )
         if path == "/encourage/signIn/v2" and code == 1511:
             raise AlreadySigned("每日补给接口提示今日已签到")
         if code != 200:
@@ -130,8 +132,14 @@ def daily_tasks(client):
 
 
 def completed(task):
-    """兼容接口返回的数字或字符串完成状态。"""
-    return str(task.get("process")) == "1"
+    """兼容接口返回的整数、浮点数及数字字符串进度。"""
+    value = task.get("process")
+    if type(value) not in (int, float, str):
+        return False
+    try:
+        return float(value) == 1.0
+    except ValueError:
+        return False
 
 
 def pgr_posts(client):

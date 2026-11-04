@@ -18,7 +18,7 @@ import community
 def tasks(done):
     """生成明确的社区任务状态。"""
     return {"dailyTask": [
-        {"remark": name, "process": str(int(done)), "gainGold": 10}
+        {"remark": name, "process": float(done), "gainGold": 10}
         for name in community.TASK_NAMES
     ]}
 
@@ -33,6 +33,15 @@ def posts():
 
 class CommunityTests(unittest.TestCase):
     """验证社区任务范围。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
+
+    def test_completion_accepts_live_float_progress(self):
+        """真实接口的 1.0 表示完成，部分进度和异常值不算完成。"""
+        for value in (1, 1.0, "1", "1.0"):
+            with self.subTest(value=value):
+                self.assertTrue(community.completed({"process": value}))
+        for value in (0, 0.5, "0.6", 2, "unknown", None, {}, True):
+            with self.subTest(value=value):
+                self.assertFalse(community.completed({"process": value}))
 
     def test_full_flow_only_community_and_pgr(self):
         """所有变更限定战双社区，完成状态必须再次查询。"""
@@ -129,6 +138,7 @@ class TransportTests(unittest.TestCase):
         request = self.client.opener.open.call_args.args[0]
         self.assertEqual(request.full_url, "https://api.kurobbs.com/user/signIn")
         self.assertEqual(request.get_header("Token"), "secret-test-token")
+        self.assertEqual(request.get_header("Source"), "h5")
         self.assertEqual(request.data, b"gameId=2")
         self.assertEqual(self.client.opener.open.call_args.kwargs["timeout"], 30)
 
@@ -151,6 +161,18 @@ class TransportTests(unittest.TestCase):
         with self.assertRaises(community.TokenExpired) as raised:
             self.client.post("/user/signIn")
         self.assertNotIn("secret-test-token", str(raised.exception))
+        self.assertIn("/user/signIn", str(raised.exception))
+        self.assertIn("220", str(raised.exception))
+        self.assertIn("source", str(raised.exception))
+        self.assertNotIn("Token 已失效", str(raised.exception))
+
+    def test_explicit_source_is_preserved(self):
+        """App 凭据允许保留原请求来源，不擅自尝试其他来源。"""
+        for source in ("ios", "android", "h5"):
+            client = community.CommunityClient({
+                "token": "test", "devcode": "d", "distinct_id": "i", "source": source,
+            })
+            self.assertEqual(client.headers["source"], source)
 
     def test_network_error_redaction(self):
         """底层异常中的凭据不外泄。"""
@@ -191,6 +213,17 @@ class ConfigAndSchedulerTests(unittest.TestCase):
             with self.assertRaises(community.CommunityError) as raised:
                 app.load_accounts(self.path)
             self.assertNotIn("fake-token", str(raised.exception))
+
+    def test_source_defaults_to_browser_and_validates_overrides(self):
+        """旧配置兼容网页 Token，显式来源按账号生效。"""
+        self.assertEqual(app.load_accounts(self.path)[0]["source"], "h5")
+        for source in ("ios", "android", "h5"):
+            self.path.write_text(json.dumps([{"name": "test", "token": "test", "source": source}]))
+            self.assertEqual(app.load_accounts(self.path)[0]["source"], source)
+        self.path.write_text(json.dumps([{"name": "test", "token": "test", "source": "invalid-secret"}]))
+        with self.assertRaises(community.CommunityError) as raised:
+            app.load_accounts(self.path)
+        self.assertNotIn("invalid-secret", str(raised.exception))
 
     def test_accounts_isolated_and_no_secret_logs(self):
         """首账号失效不影响后续账号，日志没有 Token。"""

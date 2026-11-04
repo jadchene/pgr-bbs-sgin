@@ -20,6 +20,8 @@ The service also claims PGR **Daily Supply** rewards, delivered by KuroBBS to th
 
 Add an object for each account and use unique names. Optionally copy `devcode` and `distinct_id` from request headers; otherwise stable identifiers are generated from the account name. Expired Tokens must be replaced manually. The service does not log in or disable accounts automatically. Account changes are loaded before each run.
 
+`source` defaults to `h5` for Tokens obtained from the browser as described above. For an app Token, set the account's `source` to `ios` or `android`, matching the original request header. A mismatch can also cause the server to report an expired login.
+
 Tokens are stored in the local configuration and mounted read-only. Do not share the file or screenshots. Account files are excluded from Git and image builds. On Linux, container UID `10001` must be able to read the file; for example, use owner `10001:10001` and mode `600`, with a directory that this user can traverse.
 
 ## Deploy with Docker Compose
@@ -59,7 +61,7 @@ docker compose run --rm pgr-sign python app.py --once
 docker compose up -d
 ```
 
-Network failures and incomplete tasks are retried up to 3 attempts per account, 10 seconds apart. Expired Tokens are not retried. A failed one-off run exits nonzero. Replace the Token when logs report expiry; rerun manually after other failures. Do not run multiple instances for the same account.
+Network failures and incomplete tasks are retried up to 3 attempts per account, 10 seconds apart. Authentication failures are not retried. A failed one-off run exits nonzero. Authentication error logs include the endpoint and business code. Check that the Token matches `source` before deciding whether to sign in again; rerun manually after other failures. Do not run multiple instances for the same account.
 
 ## Data access
 

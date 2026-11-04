@@ -42,7 +42,10 @@ def load_accounts(path=CONFIG_PATH):
         token = account.get("token")
         if not isinstance(token, str) or not re.fullmatch(r"[\x21-\x7e]+", token):
             raise CommunityError(f"第 {index} 个账号需要有效 Token")
-        item = {"name": name, "token": token}
+        source = account.get("source", "h5")
+        if source not in ("h5", "ios", "android"):
+            raise CommunityError(f"第 {index} 个账号的 source 必须是 h5、ios 或 android")
+        item = {"name": name, "token": token, "source": source}
         for key in ("devcode", "distinct_id"):
             value = account.get(key) or str(uuid.uuid5(uuid.NAMESPACE_URL, f"pgr-sign/{name}/{key}"))
             if not isinstance(value, str) or not re.fullmatch(r"[\x21-\x7e]+", value):
