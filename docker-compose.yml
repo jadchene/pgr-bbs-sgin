@@ -1,0 +1,27 @@
+services:
+  pgr-sign:
+    build: .
+    restart: unless-stopped
+    init: true
+    environment:
+      TZ: ${TZ:-Asia/Shanghai}
+      SIGN_TIME: ${SIGN_TIME:-09:30}
+      RUN_ON_START: ${RUN_ON_START:-true}
+    volumes:
+      - type: bind
+        source: ./config
+        target: /app/config
+        read_only: true
+        bind:
+          create_host_path: false
+    read_only: true
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    stop_grace_period: 45s
+    logging:
+      driver: json-file
+      options:
+        max-size: 5m
+        max-file: "3"

@@ -1,0 +1,8 @@
+__pycache__/
+*.py[cod]
+.venv/
+.env
+config/*
+!config/accounts.example.json
+*.log
+login_info.json

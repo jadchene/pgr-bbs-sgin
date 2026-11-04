@@ -1,0 +1,9 @@
+[project]
+name = "pgr-sign"
+version = "1.0.0"
+description = "Docker Compose 定时执行库街区战双社区任务"
+requires-python = ">=3.13"
+dependencies = []
+
+[tool.uv]
+package = false
