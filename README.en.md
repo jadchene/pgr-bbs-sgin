@@ -42,7 +42,7 @@ RUN_ON_START=true
 
 Stop the service: `docker compose down`.
 
-## Failure emails (optional)
+## Email notifications (optional)
 
 Enable IMAP/SMTP in QQ Mail settings and generate an authorization code. Copy `config/mail.example.json` to `config/mail.json`, set `enabled` to `true`, and fill in the sender, authorization code, and recipient (which can be yourself). Uses QQ Mail's encrypted SMTP; no mail server setup is needed.
 
@@ -54,7 +54,7 @@ docker compose run --rm pgr-sign python app.py --test-email
 docker compose up -d
 ```
 
-Each run sends one summary only if tasks ultimately fail. Emails exclude Tokens and character details. Keep your authorization code private. Changes apply on the next run; set `enabled` to `false` to disable notifications.
+Each completed run sends one summary with every account's success or failure. Emails exclude Tokens and character details. Keep your authorization code private. Changes apply on the next run; set `enabled` to `false` to disable notifications. If the scheduled email does not arrive, check the service and email delivery; a stopped service cannot send alerts itself.
 
 > For Tokens obtained from the app, set `source` to `ios` or `android`, matching the original request header. If the configuration cannot be read, check file permissions; the container user has UID `10001`.
 

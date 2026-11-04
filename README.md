@@ -42,7 +42,7 @@ RUN_ON_START=true
 
 停止服务：`docker compose down`。
 
-## 失败邮件（可选）
+## 邮件通知（可选）
 
 在 QQ 邮箱设置中开启 IMAP/SMTP 服务并生成授权码。将 `config/mail.example.json` 复制为 `config/mail.json`，设置 `enabled: true`，填写发件邮箱、授权码和收件邮箱（可以是自己）。使用 QQ 邮箱加密 SMTP，无需搭建邮件服务器。
 
@@ -54,7 +54,7 @@ docker compose run --rm pgr-sign python app.py --test-email
 docker compose up -d
 ```
 
-每轮仅汇总最终失败，成功不通知。邮件不包含 Token 或角色信息；授权码不要公开。修改邮件配置后下一轮生效，设置 `enabled: false` 可关闭。
+每轮结束发送一封汇总，包含各账号的成功或失败结果。邮件不包含 Token 或角色信息；授权码不要公开。修改邮件配置后下一轮生效，设置 `enabled: false` 可关闭。若到点后一直未收到邮件，请检查服务和邮件投递情况；服务停机时无法自行发信。
 
 > 从 App 获取 Token 时，`source` 应与原请求头一致，填写 `ios` 或 `android`。若日志提示配置文件无法读取，请检查文件权限，容器用户 UID 为 `10001`。
 

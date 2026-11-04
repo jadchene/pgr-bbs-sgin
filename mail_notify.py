@@ -1,4 +1,4 @@
-"""可选 QQ 邮箱通知，仅发送固定格式的失败摘要。"""
+"""可选 QQ 邮箱通知，发送固定格式的每轮执行结果。"""
 
 import json
 import logging
@@ -51,6 +51,7 @@ def send_mail(config, subject, body):
     message["Date"] = format_datetime(datetime.now(timezone.utc))
     message["Message-ID"] = make_msgid(domain="qq.com")
     message.set_content(body)
+    LOGGER.info("邮件开始发送")
     try:
         with smtplib.SMTP_SSL("smtp.qq.com", 465, timeout=15,
                               context=ssl.create_default_context()) as smtp:
@@ -60,18 +61,21 @@ def send_mail(config, subject, body):
         raise CommunityError("邮件认证失败，请检查 SMTP 服务及授权码") from None
     except Exception:
         raise CommunityError("邮件发送失败，请检查网络、邮箱设置和发送限制") from None
-    LOGGER.info("邮件已交给 QQ 邮箱服务器，请检查收件箱或垃圾箱")
+    LOGGER.info("邮件发送成功：QQ 邮箱服务器已接收，请检查收件箱或垃圾箱")
 
 
-def notify_failures(failures):
-    """每轮最多发送一封摘要；通知失败只记日志，不影响签到调度。"""
-    if not failures:
-        return
+def notify_results(results, success):
+    """每轮结束发送一封成功或失败摘要；通知失败不影响签到调度。"""
     try:
         config = load_mail()
+        if not config:
+            LOGGER.info("邮件通知未启用，跳过发送")
+            return
         if config:
-            body = "本轮执行失败：\n\n" + "\n".join(failures)
+            status = "全部成功" if success else "存在失败"
+            body = f"本轮执行{status}\n完成时间：{datetime.now().astimezone().isoformat(timespec='seconds')}\n\n"
+            body += "\n".join(results)
             body += "\n\n请查看容器日志了解详情。账号序号按当前启用账号顺序排列。"
-            send_mail(config, "战双库街区任务失败", body)
+            send_mail(config, f"战双库街区任务：{status}", body)
     except CommunityError as error:
-        LOGGER.error("%s", error)
+        LOGGER.error("邮件通知失败：%s", error)

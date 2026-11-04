@@ -63,19 +63,37 @@ class MailTests(unittest.TestCase):
                     mail.send_mail(self.config, "测试", "测试")
                 self.assertNotIn("secret", str(raised.exception))
 
-    def test_no_mail_on_success_or_disabled(self):
-        """没有失败及未配置邮件均不建立连接。"""
+    def test_no_mail_when_disabled(self):
+        """未配置邮件时成功和失败均不建立连接。"""
         with patch("mail_notify.load_mail", return_value=None), patch("mail_notify.send_mail") as send:
-            mail.notify_failures([])
-            mail.notify_failures(["账号 1：认证失败"])
+            mail.notify_results(["账号 1：成功"], True)
+            mail.notify_results(["账号 1：认证失败"], False)
             send.assert_not_called()
+
+    def test_delivery_logs_success_failure_and_skip(self):
+        """验证发送各阶段日志且不记录授权码、正文或服务端原文。"""
+        for error in (None, smtplib.SMTPAuthenticationError(535, b"server-secret"), OSError("server-secret")):
+            with patch("mail_notify.load_mail", return_value=self.config), patch(
+                "mail_notify.smtplib.SMTP_SSL", side_effect=error
+            ), self.assertLogs("pgr-sign", level="INFO") as logs:
+                mail.notify_results(["private-body"], True)
+            output = "\n".join(logs.output)
+            self.assertIn("邮件开始发送", output)
+            self.assertIn("邮件通知失败" if error else "邮件发送成功", output)
+            if error:
+                self.assertNotIn("邮件发送成功", output)
+            for secret in ("server-secret", "private-body", self.config["authorization_code"]):
+                self.assertNotIn(secret, output)
+        with patch("mail_notify.load_mail", return_value=None), self.assertLogs("pgr-sign", level="INFO") as logs:
+            mail.notify_results(["成功"], True)
+        self.assertIn("未启用，跳过发送", "\n".join(logs.output))
 
     def test_notification_failure_is_contained(self):
         """邮件故障不能使调度退出。"""
         with patch("mail_notify.load_mail", return_value=self.config), patch(
             "mail_notify.send_mail", side_effect=CommunityError("邮件发送失败")
         ), self.assertLogs("pgr-sign", level="ERROR"):
-            mail.notify_failures(["账号 1：认证失败"])
+            mail.notify_results(["账号 1：认证失败"], False)
 
     def test_final_failures_are_aggregated_without_secrets(self):
         """多个账号仅汇总一次，重试及认证错误原文不会发到邮箱。"""
@@ -86,10 +104,11 @@ class MailTests(unittest.TestCase):
         with patch("app.load_accounts", return_value=accounts), patch("app.CommunityClient"), patch(
             "app.run_account", side_effect=[TokenExpired("secret"), CommunityError("secret"),
                                              CommunityError("secret"), CommunityError("secret")]
-        ) as run, patch("app.notify_failures") as notify:
+        ) as run, patch("app.notify_results") as notify:
             self.assertFalse(app.run_once(stop))
         self.assertEqual(run.call_count, 4)
         notify.assert_called_once()
+        self.assertFalse(notify.call_args.args[1])
         failures = notify.call_args.args[0]
         self.assertEqual(len(failures), 2)
         self.assertIn("认证失败", failures[0])
@@ -97,17 +116,38 @@ class MailTests(unittest.TestCase):
         self.assertNotIn("secret", str(failures))
         self.assertNotIn("private-name", str(failures))
 
-    def test_recovered_run_and_shutdown_do_not_send(self):
-        """重试成功及正常停止不发失败邮件。"""
+    def test_recovered_run_sends_success_and_shutdown_does_not_send(self):
+        """重试成功发送成功摘要，停止导致未完成时不误报成功。"""
         for stopped in (False, True):
             stop = MagicMock()
             stop.is_set.return_value = False
             stop.wait.return_value = stopped
             with patch("app.load_accounts", return_value=[{}]), patch("app.CommunityClient"), patch(
                 "app.run_account", side_effect=[CommunityError("网络异常"), None]
-            ), patch("mail_notify.send_mail") as send:
+            ), patch("mail_notify.load_mail", return_value=self.config), patch("mail_notify.send_mail") as send:
                 self.assertEqual(app.run_once(stop), not stopped)
-                send.assert_not_called()
+                if stopped:
+                    send.assert_not_called()
+                else:
+                    send.assert_called_once()
+                    self.assertIn("全部成功", send.call_args.args[1])
+                    self.assertIn("账号 1：成功", send.call_args.args[2])
+
+    def test_mixed_results_in_one_email(self):
+        """成功账号与失败账号均在同一封摘要中，整体不能显示成功。"""
+        stop = MagicMock()
+        stop.is_set.return_value = False
+        with patch("app.load_accounts", return_value=[{}, {}]), patch("app.CommunityClient"), patch(
+            "app.run_account", side_effect=[None, TokenExpired("secret")]
+        ), patch("mail_notify.load_mail", return_value=self.config), patch("mail_notify.send_mail") as send:
+            self.assertFalse(app.run_once(stop))
+        send.assert_called_once()
+        self.assertIn("存在失败", send.call_args.args[1])
+        body = send.call_args.args[2]
+        self.assertIn("账号 1：成功", body)
+        self.assertIn("账号 2：", body)
+        self.assertIn("认证失败", body)
+        self.assertNotIn("secret", body)
 
     def test_test_email_does_not_run_tasks(self):
         """独立测试邮件无需账号配置，不执行游戏或社区操作。"""

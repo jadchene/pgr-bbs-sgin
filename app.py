@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from community import CommunityClient, CommunityError, TokenExpired, run_community
 from supply import run_supply
-from mail_notify import load_mail, notify_failures, send_mail
+from mail_notify import load_mail, notify_results, send_mail
 
 LOGGER = logging.getLogger("pgr-sign")
 CONFIG_PATH = Path(__file__).resolve().parent / "config" / "accounts.json"
@@ -85,10 +85,10 @@ def run_once(stop, path=CONFIG_PATH):
         accounts = load_accounts(path)
     except CommunityError as error:
         LOGGER.error("%s", error)
-        notify_failures(["账号配置读取失败，请检查 accounts.json 的格式和权限"])
+        notify_results(["账号配置读取失败，请检查 accounts.json 的格式和权限"], False)
         return False
     success = True
-    failures = []
+    results = []
     for index, account in enumerate(accounts, 1):
         if stop.is_set():
             return False
@@ -98,11 +98,12 @@ def run_once(stop, path=CONFIG_PATH):
         for attempt in range(1, 4):
             try:
                 run_account(CommunityClient(account, stop), finished)
+                results.append(f"账号 {index}：成功，每日补给和社区任务均已完成")
                 break
             except TokenExpired as error:
                 LOGGER.error("账号 %d：%s", index, error)
                 pending = "、".join(name for name in ("每日补给", "社区任务") if name not in finished)
-                failures.append(f"账号 {index}：{pending}未完成；认证失败，请检查 Token 与 source")
+                results.append(f"账号 {index}：{pending}未完成；认证失败，请检查 Token 与 source")
                 success = False
                 break
             except CommunityError as error:
@@ -110,16 +111,16 @@ def run_once(stop, path=CONFIG_PATH):
                 if attempt == 3:
                     success = False
                     pending = "、".join(name for name in ("每日补给", "社区任务") if name not in finished)
-                    failures.append(f"账号 {index}：{pending}重试 3 次后仍未完成，请检查网络及任务日志")
+                    results.append(f"账号 {index}：{pending}重试 3 次后仍未完成，请检查网络及任务日志")
                 elif stop.wait(10):
                     return False
             except Exception:
                 LOGGER.error("账号 %d：发生未预期错误，请检查接口适配", index)
-                failures.append(f"账号 {index}：发生未预期错误，请检查接口适配")
+                results.append(f"账号 {index}：发生未预期错误，请检查接口适配")
                 success = False
                 break
     if not stop.is_set():
-        notify_failures(failures)
+        notify_results(results, success)
     return success
 
 
