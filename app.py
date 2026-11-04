@@ -13,6 +13,7 @@ from pathlib import Path
 from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from community import CommunityClient, CommunityError, TokenExpired, run_community
+from supply import run_supply
 
 LOGGER = logging.getLogger("pgr-sign")
 CONFIG_PATH = Path(__file__).resolve().parent / "config" / "accounts.json"
@@ -53,6 +54,27 @@ def load_accounts(path=CONFIG_PATH):
     return result
 
 
+def run_account(client, finished):
+    """独立执行补给和社区任务，重试时跳过本轮已成功的任务组。"""
+    failures = []
+    for name, runner in (("每日补给", run_supply), ("社区任务", run_community)):
+        if name in finished:
+            continue
+        try:
+            runner(client)
+            finished.add(name)
+        except TokenExpired:
+            raise
+        except CommunityError as error:
+            LOGGER.warning("%s：%s", name, error)
+            failures.append(name)
+        except Exception:
+            LOGGER.warning("%s：发生未预期错误，请检查接口适配", name)
+            failures.append(name)
+    if failures:
+        raise CommunityError("未完成任务组：" + "、".join(failures))
+
+
 def run_once(stop, path=CONFIG_PATH):
     """串行运行账号；单个账号失败不影响其他账号，不自动删除或禁用账号。"""
     try:
@@ -66,9 +88,10 @@ def run_once(stop, path=CONFIG_PATH):
             return False
         # 只记录账号序号，避免误填在名称字段的敏感数据进入日志。
         LOGGER.info("开始执行账号 %d/%d", index, len(accounts))
+        finished = set()
         for attempt in range(1, 4):
             try:
-                run_community(CommunityClient(account, stop))
+                run_account(CommunityClient(account, stop), finished)
                 break
             except TokenExpired as error:
                 LOGGER.error("账号 %d：%s", index, error)
@@ -131,7 +154,7 @@ def serve(stop, hour, minute, zone, startup, runner=run_once, now=None):
 def main():
     """默认运行定时服务，支持 Compose 内一次执行和只读配置检查。"""
     logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
-    parser = argparse.ArgumentParser(description="库街区战双社区定时任务")
+    parser = argparse.ArgumentParser(description="库街区战双每日补给与社区定时任务")
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true", help="执行一轮后退出")
     mode.add_argument("--check", action="store_true", help="只验证配置，不发送网络请求")

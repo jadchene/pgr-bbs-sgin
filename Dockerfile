@@ -10,6 +10,6 @@ RUN python -c "import ssl; from zoneinfo import ZoneInfo; assert ssl.create_defa
     && useradd --uid 10001 --gid app --no-create-home app
 
 WORKDIR /app
-COPY app.py community.py LICENSE ./
+COPY app.py community.py supply.py LICENSE ./
 USER 10001:10001
 CMD ["python", "app.py"]

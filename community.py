@@ -1,4 +1,4 @@
-"""库街区战双社区任务；所有请求仅允许发送到固定的官方接口。"""
+"""库街区战双任务与 HTTP 客户端；请求仅允许发送到固定的官方接口。"""
 
 import json
 import logging
@@ -9,7 +9,7 @@ import urllib.request
 
 LOGGER = logging.getLogger("pgr-sign")
 BASE_URL = "https://api.kurobbs.com"
-PATHS = frozenset({
+COMMUNITY_PATHS = frozenset({
     "/user/signIn",
     "/forum/list",
     "/forum/getPostDetail",
@@ -18,6 +18,13 @@ PATHS = frozenset({
     "/encourage/level/shareTask",
     "/encourage/gold/getTotalGold",
 })
+SUPPLY_PATHS = frozenset({
+    "/user/mineV2",
+    "/user/role/findRoleList",
+    "/encourage/signIn/initSignInV2",
+    "/encourage/signIn/v2",
+})
+PATHS = COMMUNITY_PATHS | SUPPLY_PATHS
 TASK_NAMES = ("用户签到", "浏览3篇帖子", "点赞5次", "分享1次帖子")
 
 
@@ -29,6 +36,10 @@ class TokenExpired(CommunityError):
     """登录凭据失效。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
 
 
+class AlreadySigned(CommunityError):
+    """补给接口提示已签到，仍需查询确认。作者：chenjd；创建时间：2026-11-04 11:33:00。"""
+
+
 class NoRedirect(urllib.request.HTTPRedirectHandler):
     """阻止凭据通过重定向外传。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
 
@@ -38,7 +49,7 @@ class NoRedirect(urllib.request.HTTPRedirectHandler):
 
 
 class CommunityClient:
-    """仅访问社区接口的客户端。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
+    """仅访问库街区指定接口的客户端。作者：chenjd；创建时间：2026-11-04 11:30:00。"""
 
     def __init__(self, account, stop=None):
         """保存账号凭据，禁用环境代理，不记录请求头或响应原文。"""
@@ -66,7 +77,9 @@ class CommunityClient:
     def post(self, path, data=None):
         """校验接口白名单，限速并解析响应；凭据及服务端原文不进入异常。"""
         if path not in PATHS:
-            raise CommunityError("拒绝访问非社区接口")
+            raise CommunityError("拒绝访问未授权接口")
+        if path in SUPPLY_PATHS - {"/user/mineV2"} and str((data or {}).get("gameId")) != "2":
+            raise CommunityError("每日补给仅允许战双账号")
         delay = max(0.0, 1.0 - (time.monotonic() - self.last_request))
         if self.stop is not None:
             if self.stop.wait(delay):
@@ -95,6 +108,8 @@ class CommunityClient:
         code = result.get("code")
         if code in (220, 221, 222, 230):
             raise TokenExpired("Token 已失效，请手动重新获取并更新配置")
+        if path == "/encourage/signIn/v2" and code == 1511:
+            raise AlreadySigned("每日补给接口提示今日已签到")
         if code != 200:
             safe_code = str(code) if type(code) is int else "未知"
             raise CommunityError(f"接口返回失败（业务码 {safe_code}）")

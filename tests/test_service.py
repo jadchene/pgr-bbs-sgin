@@ -58,7 +58,7 @@ class CommunityTests(unittest.TestCase):
         self.assertEqual(paths.count("/forum/like"), 5)
         self.assertEqual(paths.count("/encourage/level/shareTask"), 1)
         self.assertEqual(paths.count("/encourage/level/getTaskProcess"), 2)
-        self.assertEqual(set(paths), community.PATHS)
+        self.assertEqual(set(paths), community.COMMUNITY_PATHS)
         for call in calls:
             if len(call.args) < 2:
                 continue
@@ -132,9 +132,9 @@ class TransportTests(unittest.TestCase):
         self.assertEqual(request.data, b"gameId=2")
         self.assertEqual(self.client.opener.open.call_args.kwargs["timeout"], 30)
 
-    def test_disallow_external_and_game_endpoints(self):
-        """外部地址及游戏签到接口均在联网前被拒绝。"""
-        for path in ("https://example.com", "//example.com", "/encourage/signIn/v2"):
+    def test_disallow_external_and_unapproved_endpoints(self):
+        """外部地址及未授权补签接口均在联网前被拒绝。"""
+        for path in ("https://example.com", "//example.com", "/encourage/signIn/repleSigInV2"):
             with self.subTest(path=path), self.assertRaises(community.CommunityError):
                 self.client.post(path)
         self.client.opener.open.assert_not_called()
@@ -198,7 +198,7 @@ class ConfigAndSchedulerTests(unittest.TestCase):
             {"name": "fake-token", "token": "fake-token"},
             {"name": "second", "token": "other-token"},
         ]))
-        with patch("app.run_community", side_effect=[community.TokenExpired("Token 已失效"), None]) as run:
+        with patch("app.run_account", side_effect=[community.TokenExpired("Token 已失效"), None]) as run:
             with self.assertLogs("pgr-sign", level="INFO") as logs:
                 self.assertFalse(app.run_once(threading.Event(), self.path))
             self.assertEqual(run.call_count, 2)
@@ -210,7 +210,7 @@ class ConfigAndSchedulerTests(unittest.TestCase):
         stop = MagicMock()
         stop.is_set.return_value = False
         stop.wait.return_value = False
-        with patch("app.run_community", side_effect=[community.CommunityError("网络异常"), None]) as run:
+        with patch("app.run_account", side_effect=[community.CommunityError("网络异常"), None]) as run:
             self.assertTrue(app.run_once(stop, self.path))
             self.assertEqual(run.call_count, 2)
         stop.wait.assert_called_once_with(10)

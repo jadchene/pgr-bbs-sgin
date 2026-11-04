@@ -4,6 +4,8 @@
 
 Use Docker Compose to complete daily tasks in the Punishing: Gray Raven community: check in, view 3 posts, like 5 posts, share, and query coins. Completed tasks are skipped and results are checked against server-side task status. Multiple accounts run sequentially.
 
+The service also claims PGR **Daily Supply** rewards, delivered by KuroBBS to the linked character's in-game mailbox. Link your PGR character in the KuroBBS app first. The service discovers all linked PGR characters and their servers using your Token; no manual role IDs are needed. Already signed-in characters are skipped. Missed-day replenishment is not performed. Daily Supply and community tasks are verified separately, so a failure in one does not block the other.
+
 ## Configure accounts
 
 1. Sign in manually at the [KuroBBS website](https://www.kurobbs.com/pns/home/).
@@ -61,7 +63,7 @@ Network failures and incomplete tasks are retried up to 3 attempts per account, 
 
 ## Data access
 
-Runtime requests are restricted to community endpoints at `https://api.kurobbs.com`. HTTP redirects and environment proxies are disabled; TLS certificate verification remains enabled. Logs omit Tokens, request headers, and raw responses. The container runs as non-root, exposes no ports, and uses a read-only filesystem and configuration mount.
+Runtime requests are restricted to community, account binding, and PGR Daily Supply endpoints at `https://api.kurobbs.com`. HTTP redirects and environment proxies are disabled; TLS certificate verification remains enabled. Logs omit Tokens, request headers, and raw responses. The container runs as non-root, exposes no ports, and uses a read-only filesystem and configuration mount.
 
 ## License
 
