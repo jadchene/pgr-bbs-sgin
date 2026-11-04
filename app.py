@@ -14,6 +14,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from community import CommunityClient, CommunityError, TokenExpired, run_community
 from supply import run_supply
+from mail_notify import load_mail, notify_failures, send_mail
 
 LOGGER = logging.getLogger("pgr-sign")
 CONFIG_PATH = Path(__file__).resolve().parent / "config" / "accounts.json"
@@ -84,8 +85,10 @@ def run_once(stop, path=CONFIG_PATH):
         accounts = load_accounts(path)
     except CommunityError as error:
         LOGGER.error("%s", error)
+        notify_failures(["账号配置读取失败，请检查 accounts.json 的格式和权限"])
         return False
     success = True
+    failures = []
     for index, account in enumerate(accounts, 1):
         if stop.is_set():
             return False
@@ -98,18 +101,25 @@ def run_once(stop, path=CONFIG_PATH):
                 break
             except TokenExpired as error:
                 LOGGER.error("账号 %d：%s", index, error)
+                pending = "、".join(name for name in ("每日补给", "社区任务") if name not in finished)
+                failures.append(f"账号 {index}：{pending}未完成；认证失败，请检查 Token 与 source")
                 success = False
                 break
             except CommunityError as error:
                 LOGGER.warning("账号 %d，第 %d/3 次：%s", index, attempt, error)
                 if attempt == 3:
                     success = False
+                    pending = "、".join(name for name in ("每日补给", "社区任务") if name not in finished)
+                    failures.append(f"账号 {index}：{pending}重试 3 次后仍未完成，请检查网络及任务日志")
                 elif stop.wait(10):
                     return False
             except Exception:
                 LOGGER.error("账号 %d：发生未预期错误，请检查接口适配", index)
+                failures.append(f"账号 {index}：发生未预期错误，请检查接口适配")
                 success = False
                 break
+    if not stop.is_set():
+        notify_failures(failures)
     return success
 
 
@@ -161,16 +171,28 @@ def main():
     mode = parser.add_mutually_exclusive_group()
     mode.add_argument("--once", action="store_true", help="执行一轮后退出")
     mode.add_argument("--check", action="store_true", help="只验证配置，不发送网络请求")
+    mode.add_argument("--test-email", action="store_true", help="只发送一封测试邮件，不执行签到")
     args = parser.parse_args()
     stop = threading.Event()
     for signum in (signal.SIGINT, signal.SIGTERM):
         signal.signal(signum, lambda *_: stop.set())
     try:
-        settings = schedule_settings()
-        load_accounts()
-        if args.check:
-            LOGGER.info("账号和定时配置检查通过")
+        if args.test_email:
+            config = load_mail()
+            if not config:
+                raise CommunityError("请先配置 config/mail.json 并设置 enabled 为 true")
+            send_mail(config, "战双库街区测试通知", "邮件通知配置成功。这是一封测试邮件，未执行签到任务。")
             return 0
+        settings = schedule_settings()
+        if args.check:
+            load_accounts()
+            load_mail()
+            LOGGER.info("账号、定时及邮件配置检查通过")
+            return 0
+        try:
+            load_mail()
+        except CommunityError as error:
+            LOGGER.error("%s；签到仍会继续执行", error)
         if args.once:
             return 0 if run_once(stop) else 1
         serve(stop, *settings)

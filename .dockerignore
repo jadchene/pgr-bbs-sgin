@@ -2,4 +2,5 @@
 !app.py
 !community.py
 !supply.py
+!mail_notify.py
 !LICENSE

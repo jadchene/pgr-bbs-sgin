@@ -1,0 +1,6 @@
+{
+  "enabled": false,
+  "sender": "123456789@qq.com",
+  "authorization_code": "填写QQ邮箱授权码",
+  "recipient": "123456789@qq.com"
+}

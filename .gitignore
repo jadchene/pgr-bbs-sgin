@@ -4,5 +4,6 @@ __pycache__/
 .env
 config/*
 !config/accounts.example.json
+!config/mail.example.json
 *.log
 login_info.json
