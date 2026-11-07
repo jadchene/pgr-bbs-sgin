@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 jadchene；上游来源及权利声明见 NOTICE。
+# 本文件由 jadchene 修改或新增，日期：2026-11-07；按 GPLv3 发布，不提供担保。
+
 """战双每日补给：自动发现绑定角色，以官方签到状态确认领取结果。"""
 
 import re

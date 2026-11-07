@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 jadchene；上游来源及权利声明见 NOTICE。
+# 本文件由 jadchene 修改或新增，日期：2026-11-07；按 GPLv3 发布，不提供担保。
+
 """库街区战双任务与 HTTP 客户端；请求仅允许发送到固定的官方接口。"""
 
 import json

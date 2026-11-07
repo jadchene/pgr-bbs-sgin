@@ -58,4 +58,4 @@ docker compose up -d
 
 > 从 App 获取 Token 时，`source` 应与原请求头一致，填写 `ios` 或 `android`。若日志提示配置文件无法读取，请检查文件权限，容器用户 UID 为 `10001`。
 
-[GPL-3.0 许可证](LICENSE)
+基于 [Kuro-autosignin](https://github.com/mxyooR/Kuro-autosignin) 修改，按 [GPL-3.0-only](LICENSE) 发布，不提供担保；来源与修改声明见 [NOTICE](NOTICE)。

@@ -1,0 +1,35 @@
+PGR KuroBBS Auto Sign-in — version 1.0.0
+
+This project is distributed under the GNU General Public License,
+version 3 only (GPL-3.0-only). See LICENSE for the complete terms.
+It is provided WITHOUT ANY WARRANTY, including the implied warranties
+of MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Origin and attribution
+----------------------
+Based on Kuro-autosignin by mxyooR and its contributors:
+https://github.com/mxyooR/Kuro-autosignin
+Original source snapshot: a3347962dadd036ea898f03c45ab273df0a00d15.
+Upstream contributions remain the work of their respective copyright
+holders. The upstream GPLv3 license text is retained unchanged.
+
+Modification notice
+-------------------
+Modified by jadchene from 2026-11-04 through 2026-11-07.
+Copyright (C) 2026 jadchene for modifications and new contributions.
+Reworked into a Python standard-library service for PGR community tasks
+and Daily Supply, with Docker Compose scheduling, manual credentials,
+restricted API access, result verification, tests and QQ email reports.
+Removed Wuthering Waves tasks, login automation and legacy deployment
+and notification integrations. This is a modified version maintained
+independently of the upstream project.
+
+Source and redistribution
+-------------------------
+Source, tests and build/run instructions:
+https://github.com/jadchene/pgr-bbs-sgin
+Version 1.0.0 source: https://github.com/jadchene/pgr-bbs-sgin/tree/v1.0.0
+Retain applicable copyright, license and modification notices when
+redistributing. Modified versions must carry their own modification
+notices and dates. Distribution of object code must also satisfy the
+corresponding-source requirements of GPLv3 section 6.

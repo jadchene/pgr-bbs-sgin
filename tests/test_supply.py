@@ -1,3 +1,7 @@
+# SPDX-License-Identifier: GPL-3.0-only
+# Copyright (C) 2026 jadchene；上游来源及权利声明见 NOTICE。
+# 本文件由 jadchene 修改或新增，日期：2026-11-07；按 GPLv3 发布，不提供担保。
+
 """每日补给离线测试；响应为测试样例，不使用真实账号。"""
 
 import io

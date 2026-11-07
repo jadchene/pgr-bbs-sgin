@@ -2,8 +2,16 @@
 name = "pgr-sign"
 version = "1.0.0"
 description = "Docker Compose 定时执行战双每日补给与库街区社区任务"
+readme = "README.md"
+license = "GPL-3.0-only"
+license-files = ["LICENSE", "NOTICE"]
+authors = [{name = "jadchene"}]
 requires-python = ">=3.13"
 dependencies = []
+
+[project.urls]
+Repository = "https://github.com/jadchene/pgr-bbs-sgin"
+Issues = "https://github.com/jadchene/pgr-bbs-sgin/issues"
 
 [tool.uv]
 package = false

@@ -58,4 +58,4 @@ Each completed run sends one summary with every account's success or failure. Em
 
 > For Tokens obtained from the app, set `source` to `ios` or `android`, matching the original request header. If the configuration cannot be read, check file permissions; the container user has UID `10001`.
 
-[GPL-3.0 license](LICENSE)
+Modified from [Kuro-autosignin](https://github.com/mxyooR/Kuro-autosignin), licensed under [GPL-3.0-only](LICENSE), without warranty. See [NOTICE](NOTICE) for attribution and modification details.
