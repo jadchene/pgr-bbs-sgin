@@ -130,7 +130,8 @@ class MailTests(unittest.TestCase):
                     send.assert_not_called()
                 else:
                     send.assert_called_once()
-                    self.assertIn("全部成功", send.call_args.args[1])
+                    self.assertEqual(send.call_args.args[1], "战双签到通知")
+                    self.assertIn("全部成功", send.call_args.args[2])
                     self.assertIn("账号 1：成功", send.call_args.args[2])
 
     def test_mixed_results_in_one_email(self):
@@ -142,7 +143,8 @@ class MailTests(unittest.TestCase):
         ), patch("mail_notify.load_mail", return_value=self.config), patch("mail_notify.send_mail") as send:
             self.assertFalse(app.run_once(stop))
         send.assert_called_once()
-        self.assertIn("存在失败", send.call_args.args[1])
+        self.assertEqual(send.call_args.args[1], "战双签到通知")
+        self.assertIn("存在失败", send.call_args.args[2])
         body = send.call_args.args[2]
         self.assertIn("账号 1：成功", body)
         self.assertIn("账号 2：", body)
@@ -156,5 +158,30 @@ class MailTests(unittest.TestCase):
         ) as send, patch("app.load_accounts") as accounts, patch("app.run_once") as run:
             self.assertEqual(app.main(), 0)
         send.assert_called_once()
+        self.assertEqual(send.call_args.args[1], "战双签到通知")
         accounts.assert_not_called()
         run.assert_not_called()
+
+    def test_test_success_and_failure_share_thread_with_unique_messages(self):
+        """测试及正常通知共享稳定关联，独立编号避免被当作重复邮件。"""
+        with patch("mail_notify.smtplib.SMTP_SSL") as factory, patch(
+            "mail_notify.load_mail", return_value=self.config
+        ), patch("app.load_mail", return_value=self.config), patch("sys.argv", ["app.py", "--test-email"]):
+            self.assertEqual(app.main(), 0)
+            mail.notify_results(["成功"], True)
+            mail.notify_results(["失败"], False)
+        messages = [call.args[0] for call in factory.return_value.__enter__.return_value.send_message.call_args_list]
+        self.assertEqual(len(messages), 3)
+        self.assertEqual(len({message["Message-ID"] for message in messages}), 3)
+        for message in messages:
+            self.assertEqual(message["Subject"], "战双签到通知")
+            self.assertEqual(message["References"], messages[0]["References"])
+            self.assertEqual(message["In-Reply-To"], message["References"])
+            self.assertNotEqual(message["Message-ID"], message["References"])
+            self.assertNotIn(self.config["sender"], message["References"])
+        self.assertEqual(mail.conversation_id(self.config), mail.conversation_id({
+            **self.config, "authorization_code": "changed"
+        }))
+        self.assertNotEqual(mail.conversation_id(self.config), mail.conversation_id({
+            **self.config, "recipient": "789@qq.com"
+        }))

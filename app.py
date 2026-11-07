@@ -14,7 +14,7 @@ from zoneinfo import ZoneInfo, ZoneInfoNotFoundError
 
 from community import CommunityClient, CommunityError, TokenExpired, run_community
 from supply import run_supply
-from mail_notify import load_mail, notify_results, send_mail
+from mail_notify import MAIL_SUBJECT, load_mail, notify_results, send_mail
 
 LOGGER = logging.getLogger("pgr-sign")
 CONFIG_PATH = Path(__file__).resolve().parent / "config" / "accounts.json"
@@ -182,7 +182,7 @@ def main():
             config = load_mail()
             if not config:
                 raise CommunityError("请先配置 config/mail.json 并设置 enabled 为 true")
-            send_mail(config, "战双库街区测试通知", "邮件通知配置成功。这是一封测试邮件，未执行签到任务。")
+            send_mail(config, MAIL_SUBJECT, "测试邮件：邮件通知配置成功，未执行签到任务。")
             return 0
         settings = schedule_settings()
         if args.check:

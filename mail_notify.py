@@ -1,6 +1,7 @@
 """可选 QQ 邮箱通知，发送固定格式的每轮执行结果。"""
 
 import json
+import hashlib
 import logging
 import re
 import smtplib
@@ -14,6 +15,14 @@ from community import CommunityError
 
 LOGGER = logging.getLogger("pgr-sign")
 MAIL_PATH = Path(__file__).resolve().parent / "config" / "mail.json"
+MAIL_SUBJECT = "战双签到通知"
+
+
+def conversation_id(config):
+    """以收发地址生成稳定会话锚点，不依赖容器状态或授权码。"""
+    addresses = [config["sender"].lower(), config["recipient"].lower()]
+    digest = hashlib.sha256(json.dumps(addresses).encode("utf-8")).hexdigest()
+    return f"<pgr-sign.{digest}@pgr-sign.invalid>"
 
 
 def load_mail(path=MAIL_PATH):
@@ -50,6 +59,10 @@ def send_mail(config, subject, body):
     message["Subject"] = subject
     message["Date"] = format_datetime(datetime.now(timezone.utc))
     message["Message-ID"] = make_msgid(domain="qq.com")
+    # 所有通知引用同一个会话锚点，每封邮件仍保留独立编号。
+    thread_id = conversation_id(config)
+    message["In-Reply-To"] = thread_id
+    message["References"] = thread_id
     message.set_content(body)
     LOGGER.info("邮件开始发送")
     try:
@@ -71,11 +84,10 @@ def notify_results(results, success):
         if not config:
             LOGGER.info("邮件通知未启用，跳过发送")
             return
-        if config:
-            status = "全部成功" if success else "存在失败"
-            body = f"本轮执行{status}\n完成时间：{datetime.now().astimezone().isoformat(timespec='seconds')}\n\n"
-            body += "\n".join(results)
-            body += "\n\n请查看容器日志了解详情。账号序号按当前启用账号顺序排列。"
-            send_mail(config, f"战双库街区任务：{status}", body)
+        status = "全部成功" if success else "存在失败"
+        body = f"本轮执行{status}\n完成时间：{datetime.now().astimezone().isoformat(timespec='seconds')}\n\n"
+        body += "\n".join(results)
+        body += "\n\n请查看容器日志了解详情。账号序号按当前启用账号顺序排列。"
+        send_mail(config, MAIL_SUBJECT, body)
     except CommunityError as error:
         LOGGER.error("邮件通知失败：%s", error)
