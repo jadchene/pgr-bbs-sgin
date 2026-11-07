@@ -4,9 +4,13 @@
 
 Schedule PGR Daily Supply claims and KuroBBS check-in, browsing, liking, and sharing tasks with Docker Compose. Supports multiple accounts. Supply rewards are sent to each linked character's in-game mailbox.
 
+Unofficial project, not affiliated with or endorsed by KURO GAMES. “Punishing: Gray Raven” and “KuroBBS” identify the supported services; trademarks belong to their respective owners.
+
 ## Setup
 
 Requires Docker, Docker Compose, and a PGR character linked in the KuroBBS app.
+
+Before use, check your account authorization and whether the platform permits automation. A working API does not imply permission. Automated check-ins, likes and reward claims may trigger anti-abuse measures or account restrictions. The GPL licenses this project's code, not platform access or trademark use.
 
 1. Sign in to [KuroBBS](https://www.kurobbs.com/pns/home/). Open developer tools (F12), select Network, and refresh. Copy the `token` header from an authenticated request to `api.kurobbs.com`.
 2. Copy `config/accounts.example.json` to `config/accounts.json` and enter your Token:
