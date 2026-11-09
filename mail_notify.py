@@ -1,6 +1,6 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 jadchene；上游来源及权利声明见 NOTICE。
-# 本文件由 jadchene 修改或新增，日期：2026-11-07；按 GPLv3 发布，不提供担保。
+# 本文件由 jadchene 修改或新增，日期：2026-11-09；按 GPLv3 发布，不提供担保。
 
 """可选 QQ 邮箱通知，发送固定格式的每轮执行结果。"""
 
@@ -12,6 +12,7 @@ import smtplib
 import ssl
 from datetime import datetime, timezone
 from email.message import EmailMessage
+from email.headerregistry import Address
 from email.utils import format_datetime, make_msgid
 from pathlib import Path
 
@@ -52,13 +53,23 @@ def load_mail(path=MAIL_PATH):
     password = data.get("authorization_code")
     if not isinstance(password, str) or not re.fullmatch(r"[A-Za-z]{16}", password):
         raise CommunityError("请填写 QQ 邮箱的 16 位授权码，不是登录密码")
+    sender_name(data)
     return data
+
+
+def sender_name(config):
+    """读取可选显示名称，拒绝控制字符及邮件头注入内容。"""
+    name = config.get("sender_name", MAIL_SUBJECT)
+    if (not isinstance(name, str) or not name.strip() or len(name) > 100
+            or any(ord(char) < 32 or ord(char) == 127 for char in name)):
+        raise CommunityError("邮件配置 sender_name 需为 1 至 100 字的非空名称，不能包含控制字符")
+    return name.strip()
 
 
 def send_mail(config, subject, body):
     """固定使用 QQ SMTP TLS，启用证书校验并隐藏底层错误内容。"""
     message = EmailMessage()
-    message["From"] = config["sender"]
+    message["From"] = Address(display_name=sender_name(config), addr_spec=config["sender"])
     message["To"] = config["recipient"]
     message["Subject"] = subject
     message["Date"] = format_datetime(datetime.now(timezone.utc))

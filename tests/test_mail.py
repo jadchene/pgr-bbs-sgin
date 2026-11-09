@@ -1,12 +1,14 @@
 # SPDX-License-Identifier: GPL-3.0-only
 # Copyright (C) 2026 jadchene；上游来源及权利声明见 NOTICE。
-# 本文件由 jadchene 修改或新增，日期：2026-11-07；按 GPLv3 发布，不提供担保。
+# 本文件由 jadchene 修改或新增，日期：2026-11-09；按 GPLv3 发布，不提供担保。
 
 """离线验证邮件通知和任务失败汇总，不连接邮箱或真实账号。"""
 
 import json
 import smtplib
 import ssl
+from email import policy
+from email.parser import BytesParser
 import tempfile
 import unittest
 from pathlib import Path
@@ -66,6 +68,35 @@ class MailTests(unittest.TestCase):
                 with self.assertRaises(CommunityError) as raised:
                     mail.send_mail(self.config, "测试", "测试")
                 self.assertNotIn("secret", str(raised.exception))
+
+    def test_sender_display_name_roundtrip(self):
+        """中文及特殊字符正确编码，显示名称不改变认证账号或会话。"""
+        for name in (None, '我的签到提醒', '签到, "日报" <通知>'):
+            config = dict(self.config)
+            if name is not None:
+                config["sender_name"] = name
+            with patch("mail_notify.smtplib.SMTP_SSL") as factory:
+                mail.send_mail(config, mail.MAIL_SUBJECT, "测试")
+            smtp = factory.return_value.__enter__.return_value
+            smtp.login.assert_called_once_with(config["sender"], config["authorization_code"])
+            message = smtp.send_message.call_args.args[0]
+            parsed = BytesParser(policy=policy.default).parsebytes(message.as_bytes())
+            address = parsed["From"].addresses[0]
+            self.assertEqual(address.display_name, name or mail.MAIL_SUBJECT)
+            self.assertEqual(address.addr_spec, config["sender"])
+            self.assertEqual(message["References"], mail.conversation_id(self.config))
+
+    def test_invalid_sender_name_rejected_without_echo(self):
+        """配置检查拒绝非法名称，不回显内容且不连接服务器。"""
+        for name in (None, 123, '', '  ', 'x' * 101, 'secret\r\nBcc: bad@qq.com', 'secret\x00'):
+            config = {**self.config, "sender_name": name}
+            self.path.write_text(json.dumps(config))
+            with self.assertRaises(CommunityError) as raised:
+                mail.load_mail(self.path)
+            self.assertNotIn("secret", str(raised.exception))
+            with patch("mail_notify.smtplib.SMTP_SSL") as factory, self.assertRaises(CommunityError):
+                mail.send_mail(config, mail.MAIL_SUBJECT, "测试")
+            factory.assert_not_called()
 
     def test_no_mail_when_disabled(self):
         """未配置邮件时成功和失败均不建立连接。"""

@@ -50,6 +50,8 @@ RUN_ON_START=true
 
 在 QQ 邮箱设置中开启 IMAP/SMTP 服务并生成授权码。将 `config/mail.example.json` 复制为 `config/mail.json`，设置 `enabled: true`，填写发件邮箱、授权码和收件邮箱（可以是自己）。使用 QQ 邮箱加密 SMTP，无需搭建邮件服务器。
 
+可选字段 `sender_name` 设置发件人显示名称，默认“战双签到通知”。
+
 更新镜像后发送测试邮件，不会执行签到：
 
 ```sh

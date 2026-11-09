@@ -50,6 +50,8 @@ Stop the service: `docker compose down`.
 
 Enable IMAP/SMTP in QQ Mail settings and generate an authorization code. Copy `config/mail.example.json` to `config/mail.json`, set `enabled` to `true`, and fill in the sender, authorization code, and recipient (which can be yourself). Uses QQ Mail's encrypted SMTP; no mail server setup is needed.
 
+The optional `sender_name` field sets the sender's display name (default: `战双签到通知`).
+
 Build the updated image and send a test email without running sign-in tasks:
 
 ```sh

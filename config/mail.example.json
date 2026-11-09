@@ -1,6 +1,7 @@
 {
   "enabled": false,
   "sender": "123456789@qq.com",
+  "sender_name": "战双签到通知",
   "authorization_code": "填写QQ邮箱授权码",
   "recipient": "123456789@qq.com"
 }
